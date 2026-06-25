@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kuiz RPM 2026–2035 · 7 Teras Strategik</title>
+<meta name="description" content="Kuiz interaktif Rancangan Pendidikan Malaysia 2026–2035 — 7 Teras Strategik, 35 soalan.">
+
+<!--
+=====================================================================
+  KONFIGURASI — EDIT DI SINI SAHAJA
+  Tampal URL Web App Google Apps Script anda di antara tanda petik.
+  Cara dapatkan URL ada dalam fail "kod-google-sheet.gs".
+  Biarkan kosong "" jika belum sedia (kuiz tetap jalan, cuma tak
+  hantar ke Sheet — status akan papar "Mod tanpa simpanan").
+=====================================================================
+-->
+<script>
+  const CONFIG = {
+    GAS_URL: "",                                  // ← tampal URL Web App di sini
+    TAJUK:   "Kuiz RPM 2026–2035",
+    SUBTAJUK:"7 Teras Strategik · Rancangan Pendidikan Malaysia",
+    PENGANJUR:"Sektor Perancangan & Pengurusan PPD, JPN Kedah"
+  };
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --navy-900:#0b1a36; --navy-800:#112347; --navy-700:#1b3262; --navy-600:#27447f;
+    --gold:#c9a227; --gold-2:#e6c668; --gold-soft:rgba(201,162,39,.14);
+    --paper:#f6f2e9; --paper-2:#fffdf8; --ink:#16203a; --ink-soft:#54607a;
+    --green:#2f7d5b; --green-bg:rgba(47,125,91,.12);
+    --red:#c0392b; --red-bg:rgba(192,57,43,.10);
+    --line:rgba(11,26,54,.10);
+    --shadow:0 18px 50px -22px rgba(11,26,54,.45);
+    --radius:18px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:'Plus Jakarta Sans',system-ui,sans-serif;
+    background:
+      radial-gradient(1200px 600px at 50% -10%, #16315f 0%, transparent 60%),
+      linear-gradient(160deg,var(--navy-900),var(--navy-800) 55%,#0a1730);
+    color:var(--ink);
+    min-height:100vh;
+    display:flex; align-items:flex-start; justify-content:center;
+    padding:clamp(14px,4vw,40px) 14px;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  .stage{width:100%;max-width:680px}
+
+  /* ---------- Kad utama ---------- */
+  .card{
+    background:var(--paper);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    overflow:hidden;
+    border:1px solid rgba(255,255,255,.06);
+  }
+  .card-pad{padding:clamp(20px,5vw,40px)}
+
+  /* ---------- Hiasan jata / kepala ---------- */
+  .crest{
+    background:linear-gradient(135deg,var(--navy-800),var(--navy-700));
+    color:#fff; text-align:center;
+    padding:clamp(26px,6vw,40px) clamp(18px,5vw,40px) clamp(22px,5vw,34px);
+    position:relative;
+  }
+  .crest::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;
+    background:linear-gradient(90deg,transparent,var(--gold) 18%,var(--gold-2) 50%,var(--gold) 82%,transparent)}
+  .eyebrow{
+    font-size:.72rem;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--gold-2);font-weight:600;margin-bottom:14px;
+  }
+  .crest h1{
+    font-family:'Fraunces',serif;font-weight:600;
+    font-size:clamp(1.7rem,6vw,2.5rem);line-height:1.08;letter-spacing:-.01em;
+  }
+  .crest .sub{margin-top:12px;color:rgba(255,255,255,.78);font-size:.96rem;max-width:34ch;margin-inline:auto}
+  .pips{display:flex;gap:7px;justify-content:center;margin-top:20px}
+  .pips i{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.22);transition:.3s}
+  .pips i.on{background:var(--gold-2);box-shadow:0 0 0 4px var(--gold-soft)}
+
+  /* ---------- Skrin mula ---------- */
+  .lead{font-size:1.02rem;color:var(--ink-soft);margin-bottom:22px}
+  .facts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:26px}
+  .fact{background:var(--paper-2);border:1px solid var(--line);border-radius:14px;padding:14px 12px;text-align:center}
+  .fact b{font-family:'Fraunces',serif;font-size:1.5rem;color:var(--navy-700);display:block;line-height:1}
+  .fact span{font-size:.74rem;color:var(--ink-soft);letter-spacing:.04em;text-transform:uppercase;margin-top:6px;display:block}
+
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:.82rem;font-weight:600;color:var(--navy-700);margin-bottom:6px;letter-spacing:.01em}
+  .field label .opt{font-weight:400;color:var(--ink-soft)}
+  .field input{
+    width:100%;font:inherit;font-size:1rem;color:var(--ink);
+    padding:13px 15px;border:1.5px solid var(--line);border-radius:12px;background:var(--paper-2);
+    transition:.18s;
+  }
+  .field input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 4px var(--gold-soft)}
+  .field input.err{border-color:var(--red);box-shadow:0 0 0 4px var(--red-bg)}
+
+  /* ---------- Butang ---------- */
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:9px;
+    width:100%;font:inherit;font-weight:700;font-size:1.02rem;cursor:pointer;
+    padding:15px 22px;border-radius:13px;border:none;letter-spacing:.01em;
+    background:linear-gradient(135deg,var(--navy-700),var(--navy-800));color:#fff;
+    transition:transform .12s,box-shadow .2s,opacity .2s;
+    box-shadow:0 12px 28px -12px rgba(11,26,54,.6);
+  }
+  .btn:hover{transform:translateY(-1px)}
+  .btn:active{transform:translateY(0)}
+  .btn[disabled]{opacity:.45;cursor:not-allowed;transform:none}
+  .btn.gold{background:linear-gradient(135deg,var(--gold),#b8901f);color:#241c00}
+  .btn.ghost{background:transparent;color:var(--navy-700);border:1.5px solid var(--line);box-shadow:none}
+
+  /* ---------- Bar kemajuan ---------- */
+  .quiz-head{padding:18px clamp(18px,5vw,34px);border-bottom:1px solid var(--line);background:var(--paper-2)}
+  .qmeta{display:flex;justify-content:space-between;align-items:baseline;font-size:.82rem;color:var(--ink-soft);margin-bottom:10px}
+  .qmeta .teras{font-weight:700;color:var(--navy-700);letter-spacing:.02em}
+  .qmeta .count b{color:var(--navy-700)}
+  .track{height:8px;border-radius:99px;background:rgba(11,26,54,.10);overflow:hidden}
+  .track i{display:block;height:100%;width:0;border-radius:99px;
+    background:linear-gradient(90deg,var(--gold),var(--gold-2));transition:width .45s cubic-bezier(.2,.8,.2,1)}
+
+  /* ---------- Soalan ---------- */
+  .tag{
+    display:inline-block;font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;font-weight:700;
+    color:var(--gold);background:var(--gold-soft);padding:5px 11px;border-radius:99px;margin-bottom:14px;
+  }
+  .question{font-family:'Fraunces',serif;font-weight:500;font-size:clamp(1.22rem,4.5vw,1.55rem);
+    line-height:1.32;color:var(--ink);margin-bottom:20px;letter-spacing:-.005em}
+  .opts{display:flex;flex-direction:column;gap:11px}
+  .opt-btn{
+    display:flex;align-items:flex-start;gap:13px;text-align:left;width:100%;font:inherit;cursor:pointer;
+    background:var(--paper-2);border:1.5px solid var(--line);border-radius:14px;padding:15px 16px;
+    color:var(--ink);font-size:1rem;transition:.16s;position:relative;
+  }
+  .opt-btn:hover:not(:disabled){border-color:var(--navy-600);background:#fff}
+  .opt-btn:disabled{cursor:default}
+  .opt-btn .key{
+    flex:0 0 auto;width:28px;height:28px;border-radius:8px;display:grid;place-items:center;
+    font-weight:700;font-size:.9rem;background:var(--navy-800);color:#fff;transition:.16s;
+  }
+  .opt-btn .txt{padding-top:3px}
+  .opt-btn .mark{margin-left:auto;font-weight:800;opacity:0;transition:.16s;align-self:center;font-size:1.15rem}
+  .opt-btn.correct{border-color:var(--green);background:var(--green-bg)}
+  .opt-btn.correct .key{background:var(--green)}
+  .opt-btn.correct .mark{opacity:1;color:var(--green)}
+  .opt-btn.wrong{border-color:var(--red);background:var(--red-bg)}
+  .opt-btn.wrong .key{background:var(--red)}
+  .opt-btn.wrong .mark{opacity:1;color:var(--red)}
+  .opt-btn.dim{opacity:.55}
+
+  .explain{
+    margin-top:18px;border-left:4px solid var(--gold);background:var(--paper-2);
+    border-radius:0 12px 12px 0;padding:14px 16px;font-size:.93rem;color:var(--ink-soft);
+    display:none;
+  }
+  .explain.show{display:block;animation:rise .3s ease}
+  .explain b{color:var(--navy-700)}
+  @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  .quiz-foot{padding:16px clamp(18px,5vw,34px) clamp(18px,5vw,30px)}
+
+  /* ---------- Keputusan ---------- */
+  .score-ring{display:grid;place-items:center;margin:8px auto 4px;position:relative;width:172px;height:172px}
+  .score-ring svg{transform:rotate(-90deg)}
+  .score-ring .inner{position:absolute;text-align:center}
+  .score-ring .inner b{font-family:'Fraunces',serif;font-size:2.7rem;color:var(--navy-800);line-height:1;display:block}
+  .score-ring .inner span{font-size:.78rem;color:var(--ink-soft);letter-spacing:.05em;text-transform:uppercase}
+  .band{text-align:center;margin:6px 0 4px}
+  .band .pill{display:inline-block;font-weight:700;padding:8px 18px;border-radius:99px;font-size:.95rem}
+  .band p{color:var(--ink-soft);font-size:.95rem;margin-top:10px}
+
+  .breakdown{margin-top:26px}
+  .breakdown h3{font-family:'Fraunces',serif;font-weight:600;font-size:1.05rem;color:var(--navy-800);margin-bottom:14px}
+  .brow{margin-bottom:13px}
+  .brow .top{display:flex;justify-content:space-between;font-size:.85rem;margin-bottom:5px}
+  .brow .top .nm{color:var(--ink);font-weight:600}
+  .brow .top .sc{color:var(--ink-soft);font-variant-numeric:tabular-nums}
+  .bbar{height:9px;border-radius:99px;background:rgba(11,26,54,.08);overflow:hidden}
+  .bbar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--navy-600),var(--navy-700));transition:width .8s cubic-bezier(.2,.8,.2,1)}
+
+  .save-state{
+    margin-top:22px;border-radius:13px;padding:14px 16px;font-size:.9rem;
+    display:flex;align-items:center;gap:11px;border:1px solid var(--line);background:var(--paper-2);color:var(--ink-soft)
+  }
+  .save-state .dot{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
+  .save-state.ok{background:var(--green-bg);border-color:rgba(47,125,91,.3);color:#1e5a40}
+  .save-state.ok .dot{background:var(--green)}
+  .save-state.fail{background:var(--red-bg);border-color:rgba(192,57,43,.3);color:#8c2a20}
+  .save-state.fail .dot{background:var(--red)}
+  .save-state.busy .dot{background:var(--gold);animation:pulse 1s infinite}
+  @keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
+
+  .foot-note{text-align:center;color:rgba(255,255,255,.45);font-size:.78rem;margin-top:18px}
+  .foot-note .sig{font-family:'Fraunces',serif;color:var(--gold-2);font-style:italic}
+
+  .row2{display:flex;gap:11px;margin-top:12px}
+  .row2 .btn{width:auto;flex:1}
+
+  @media(max-width:380px){.facts{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="card" id="card">
+
+    <!-- ============ SKRIN MULA ============ -->
+    <section id="screen-start">
+      <div class="crest">
+        <div class="eyebrow" id="eyebrow">Rancangan Pendidikan Malaysia</div>
+        <h1 id="title">Kuiz RPM<br>2026–2035</h1>
+        <p class="sub" id="subtitle">Uji kefahaman anda terhadap 7 Teras Strategik.</p>
+        <div class="pips"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      </div>
+      <div class="card-pad">
+        <p class="lead">Kuiz penuh ini mengandungi <b>35 soalan</b> — 5 soalan bagi setiap teras strategik. Anda akan dapat penjelasan ringkas selepas setiap jawapan, dan pecahan skor mengikut teras pada akhir kuiz.</p>
+        <div class="facts">
+          <div class="fact"><b>7</b><span>Teras</span></div>
+          <div class="fact"><b>35</b><span>Soalan</span></div>
+          <div class="fact"><b>~10</b><span>Minit</span></div>
+        </div>
+        <div class="field">
+          <label for="nm">Nama penuh</label>
+          <input id="nm" type="text" autocomplete="name" placeholder="Nama anda" maxlength="80">
+        </div>
+        <div class="field">
+          <label for="jw">Jawatan <span class="opt">(pilihan)</span></label>
+          <input id="jw" type="text" placeholder="cth. Guru / PPP / Pegawai" maxlength="80">
+        </div>
+        <div class="field">
+          <label for="in">Institusi / Sektor <span class="opt">(pilihan)</span></label>
+          <input id="in" type="text" placeholder="cth. SK Alor Janggus / PPD Kota Setar" maxlength="120">
+        </div>
+        <button class="btn gold" id="btn-start">Mula Kuiz &nbsp;→</button>
+      </div>
+    </section>
+
+    <!-- ============ SKRIN KUIZ ============ -->
+    <section id="screen-quiz" hidden>
+      <div class="quiz-head">
+        <div class="qmeta">
+          <span class="teras" id="q-teras">Teras 1</span>
+          <span class="count">Soalan <b id="q-num">1</b> / 35</span>
+        </div>
+        <div class="track"><i id="q-bar"></i></div>
+      </div>
+      <div class="card-pad">
+        <span class="tag" id="q-tag">Teras Strategik 1</span>
+        <div class="question" id="q-text">—</div>
+        <div class="opts" id="q-opts"></div>
+        <div class="explain" id="q-explain"></div>
+      </div>
+      <div class="quiz-foot">
+        <button class="btn" id="btn-next" disabled>Pilih satu jawapan</button>
+      </div>
+    </section>
+
+    <!-- ============ SKRIN KEPUTUSAN ============ -->
+    <section id="screen-result" hidden>
+      <div class="crest">
+        <div class="eyebrow">Keputusan Kuiz</div>
+        <h1 style="font-size:clamp(1.5rem,5.5vw,2.1rem)">Tahniah, <span id="r-name">peserta</span>!</h1>
+      </div>
+      <div class="card-pad">
+        <div class="score-ring">
+          <svg width="172" height="172" viewBox="0 0 172 172">
+            <circle cx="86" cy="86" r="74" fill="none" stroke="rgba(11,26,54,.10)" stroke-width="14"/>
+            <circle id="r-ring" cx="86" cy="86" r="74" fill="none" stroke="url(#g)" stroke-width="14"
+                    stroke-linecap="round" stroke-dasharray="465" stroke-dashoffset="465"/>
+            <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#c9a227"/><stop offset="1" stop-color="#e6c668"/>
+            </linearGradient></defs>
+          </svg>
+          <div class="inner"><b id="r-score">0</b><span>/ 35 markah</span></div>
+        </div>
+        <div class="band">
+          <span class="pill" id="r-pill">—</span>
+          <p id="r-msg"></p>
+        </div>
+
+        <div class="breakdown">
+          <h3>Pecahan mengikut teras</h3>
+          <div id="r-bars"></div>
+        </div>
+
+        <div class="save-state busy" id="r-save">
+          <span class="dot"></span><span id="r-save-txt">Menyimpan keputusan…</span>
+        </div>
+
+        <div class="row2">
+          <button class="btn ghost" id="btn-review">Semak jawapan</button>
+          <button class="btn gold" id="btn-retry">Cuba lagi</button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+  <p class="foot-note"><span id="f-org">Sektor Perancangan & Pengurusan PPD, JPN Kedah</span><br>oleh <span class="sig">Cikgu Shahril</span></p>
+</div>
+
+<script>
+/* =====================================================================
+   BANK SOALAN — 35 soalan, 5 bagi setiap teras.
+   Setiap soalan berpaut pada kandungan rasmi RPM 2026–2035.
+   c = indeks jawapan betul (0–3).
+===================================================================== */
+const TERAS = [
+ { id:1, nama:"Memastikan Sistem Pendidikan Malaysia yang Terangkum, Dinamik dan Relevan", soalan:[
+   { t:"Apakah matlamat utama Teras Strategik 1?",
+     o:["Memastikan sistem pendidikan Malaysia yang terangkum, dinamik dan relevan","Mentransformasikan pendidik agar berkeupayaan tinggi","Memantapkan prasarana fizikal dan digital","Meningkatkan kecekapan tadbir urus"], c:0,
+     e:"Teras 1 menyasarkan sistem pendidikan yang terangkum, dinamik dan relevan bagi melengkapkan murid dengan ilmu, kemahiran dan nilai abad ke-21." },
+   { t:"Berapakah bilangan strategi utama di bawah Teras Strategik 1?",
+     o:["Dua","Tiga","Empat","Lima"], c:1,
+     e:"Terdapat tiga strategi utama di bawah Teras 1." },
+   { t:"Yang manakah merupakan strategi di bawah Teras Strategik 1?",
+     o:["Reformasi Kurikulum","Memperkasakan Pentaksiran dan Peperiksaan Kebangsaan","Meningkatkan Kesejahteraan Pendidik","Memperkasakan Prasarana Digital untuk Pendidikan"], c:1,
+     e:"Strategi 3 Teras 1 ialah Memperkasakan Pentaksiran dan Peperiksaan Kebangsaan. Pilihan lain tergolong dalam teras yang berbeza." },
+   { t:"“Memperkasakan Struktur Persekolahan Kebangsaan” ialah strategi di bawah teras yang mana?",
+     o:["Teras Strategik 1","Teras Strategik 2","Teras Strategik 4","Teras Strategik 6"], c:0,
+     e:"Ia merupakan Strategi 2 di bawah Teras 1." },
+   { t:"Sasaran wajib capai RPM menetapkan murid mencapai sekurang-kurangnya gred C bagi empat mata pelajaran. Apakah empat mata pelajaran itu?",
+     o:["Bahasa Melayu, Bahasa Inggeris, Matematik dan Sejarah","Bahasa Melayu, Sains, Matematik dan Pendidikan Islam","Bahasa Inggeris, Sains, Sejarah dan Geografi","Bahasa Melayu, Bahasa Inggeris, Sains dan Matematik"], c:0,
+     e:"Sasaran wajib capai menetapkan gred C bagi Bahasa Melayu, Bahasa Inggeris, Matematik dan Sejarah." },
+ ]},
+ { id:2, nama:"Mengoptimumkan Potensi Setiap Murid Melalui Pengalaman Pembelajaran yang Bermakna untuk Menjadi Warganegara Global", soalan:[
+   { t:"Apakah fokus utama Teras Strategik 2?",
+     o:["Mengoptimumkan potensi setiap murid melalui pengalaman pembelajaran yang bermakna","Memperkukuh sinergi dengan pihak berkepentingan","Membudayakan kemampanan dalam ekosistem pendidikan","Meneliti keberkesanan dasar pendidikan"], c:0,
+     e:"Teras 2 menumpukan pengoptimuman potensi setiap murid agar menjadi warganegara global." },
+   { t:"Yang manakah BUKAN strategi di bawah Teras Strategik 2?",
+     o:["Reformasi Kurikulum","Membangunkan Bakat","Membentuk Karakter","Memperkasakan Prasarana Digital untuk Pendidikan"], c:3,
+     e:"Memperkasakan Prasarana Digital ialah strategi di bawah Teras 4, bukan Teras 2." },
+   { t:"Strategi pertama di bawah Teras Strategik 2 ialah:",
+     o:["Meningkatkan Kemahiran Murid","Reformasi Kurikulum","Membentuk Karakter","Membangunkan Bakat"], c:1,
+     e:"Strategi 1 Teras 2 ialah Reformasi Kurikulum." },
+   { t:"Berapakah bilangan strategi di bawah Teras Strategik 2?",
+     o:["Tiga","Empat","Lima","Enam"], c:1,
+     e:"Teras 2 mempunyai empat strategi: Reformasi Kurikulum, Meningkatkan Kemahiran Murid, Membangunkan Bakat dan Membentuk Karakter." },
+   { t:"Aspirasi akhir murid yang ditekankan dalam Teras Strategik 2 ialah untuk menjadi:",
+     o:["Warganegara global","Usahawan digital","Pakar teknikal","Pemimpin politik"], c:0,
+     e:"Tajuk Teras 2 menekankan murid menjadi warganegara global." },
+ ]},
+ { id:3, nama:"Mentransformasikan Pendidik agar Berkeupayaan Tinggi dan Berorientasikan Masa Hadapan", soalan:[
+   { t:"Teras Strategik 3 memberikan tumpuan kepada:",
+     o:["Mentransformasikan pendidik agar berkeupayaan tinggi dan berorientasikan masa hadapan","Memantapkan prasarana fizikal dan digital","Memperkasakan struktur persekolahan kebangsaan","Meningkatkan advokasi pembangunan mampan"], c:0,
+     e:"Teras 3 menumpu transformasi pendidik agar berkeupayaan tinggi dan bersedia menghadapi masa hadapan." },
+   { t:"Strategi 1 Teras Strategik 3 berkaitan dengan:",
+     o:["Latihan keguruan","Kesejahteraan pendidik","Pembangunan pemimpin","Reformasi kurikulum"], c:1,
+     e:"Strategi 1 Teras 3 ialah Meningkatkan Kesejahteraan Pendidik." },
+   { t:"“Membangunkan Pemimpin Transformatif, Berkeupayaan Tinggi dan Berorientasikan Masa Hadapan” ialah strategi di bawah teras yang mana?",
+     o:["Teras Strategik 3","Teras Strategik 5","Teras Strategik 7","Teras Strategik 1"], c:0,
+     e:"Ia merupakan Strategi 4 di bawah Teras 3." },
+   { t:"Dalam pemerkasaan kompetensi pendidik, singkatan PPB bermaksud:",
+     o:["Pembangunan Profesionalisme Berterusan","Pelan Pembangunan Bakat","Penilaian Prestasi Berkala","Program Pendidik Berinovasi"], c:0,
+     e:"Strategi 2 Teras 3 memperkasakan kompetensi pendidik melalui Pembangunan Profesionalisme Berterusan (PPB)." },
+   { t:"Pewujudan pegawai psikologi dan jururawat komuniti di bawah teras ini terutamanya bertujuan menangani isu:",
+     o:["Kesihatan mental, emosi dan pembangunan sosial murid","Penyelenggaraan prasarana sekolah","Pengurusan kewangan sekolah","Pentaksiran berasaskan sekolah"], c:0,
+     e:"Penambahan profesional ini memperkukuh sokongan dalam isu kesihatan mental, emosi dan pembangunan sosial murid." },
+ ]},
+ { id:4, nama:"Memantapkan Prasarana Fizikal dan Digital di Semua Institusi Pendidikan KPM", soalan:[
+   { t:"Apakah matlamat Teras Strategik 4?",
+     o:["Memantapkan prasarana di semua institusi pendidikan KPM","Membentuk karakter murid","Mengukuhkan pelan komunikasi KPM","Membangunkan bakat murid"], c:0,
+     e:"Matlamat Teras 4 ialah memantapkan prasarana fizikal dan digital di semua institusi pendidikan KPM." },
+   { t:"Berapakah bilangan strategi utama di bawah Teras Strategik 4?",
+     o:["Dua","Tiga","Empat","Lima"], c:1,
+     e:"Teras 4 dilaksanakan melalui tiga strategi utama yang saling berkait." },
+   { t:"Strategi yang menekankan pembangunan prasarana secara “terangkum dan lestari” ialah:",
+     o:["Strategi 1 Teras 4","Strategi 2 Teras 4","Strategi 3 Teras 4","Strategi 1 Teras 6"], c:0,
+     e:"Strategi 1 Teras 4 ialah Memperkukuh Pembangunan Prasarana yang Terangkum dan Lestari." },
+   { t:"“Menambah Baik Sistem Pintar dan Tadbir Urus Berpandukan Data” menekankan pendekatan:",
+     o:["Berpandukan data","Berpandukan naluri","Berpandukan tradisi","Berpandukan peruntukan tahunan"], c:0,
+     e:"Strategi 3 Teras 4 menekankan tadbir urus berpandukan data (data-driven)." },
+   { t:"Yang manakah strategi di bawah Teras Strategik 4?",
+     o:["Memperkasakan Prasarana Digital untuk Pendidikan","Membentuk Karakter","Meningkatkan Kesejahteraan Pendidik","Memperkukuh Ekosistem Penyaluran Sumber"], c:0,
+     e:"Memperkasakan Prasarana Digital untuk Pendidikan ialah Strategi 2 Teras 4." },
+ ]},
+ { id:5, nama:"Mempergiat Sinergi antara Institusi Pendidikan KPM dengan Pihak Berkepentingan", soalan:[
+   { t:"Teras Strategik 5 memfokuskan kepada:",
+     o:["Mempergiat sinergi antara institusi pendidikan KPM dengan pihak berkepentingan","Memantapkan prasarana digital","Membudayakan kemampanan","Memperkasakan pentaksiran kebangsaan"], c:0,
+     e:"Teras 5 menumpu sinergi institusi pendidikan KPM dengan semua pihak berkepentingan." },
+   { t:"Yang manakah strategi di bawah Teras Strategik 5?",
+     o:["Memperkukuh Ekosistem Penyaluran Sumber","Reformasi Kurikulum","Membangunkan Pemimpin Transformatif","Memperkasakan Prasarana Digital"], c:0,
+     e:"Strategi 2 Teras 5 ialah Memperkukuh Ekosistem Penyaluran Sumber." },
+   { t:"“Meningkatkan Pelibatan Pihak Berkepentingan dengan Institusi Pendidikan KPM” ialah:",
+     o:["Strategi 3 Teras 5","Strategi 1 Teras 7","Strategi 2 Teras 6","Strategi 1 Teras 1"], c:0,
+     e:"Ia merupakan Strategi 3 di bawah Teras 5." },
+   { t:"Pendekatan pembangunan RPM yang melibatkan kerajaan dan masyarakat secara menyeluruh dirujuk sebagai:",
+     o:["Whole of government dan whole of society","Top-down dan bottom-up","Public-private partnership sahaja","Whole of school"], c:0,
+     e:"RPM dirangka melalui pendekatan menyeluruh kerajaan (whole of government) dan menyeluruh masyarakat (whole of society) — selari dengan semangat sinergi Teras 5." },
+   { t:"Berapakah bilangan strategi di bawah Teras Strategik 5?",
+     o:["Dua","Tiga","Empat","Lima"], c:1,
+     e:"Teras 5 mempunyai tiga strategi." },
+ ]},
+ { id:6, nama:"Membudayakan Kemampanan dalam Ekosistem Pendidikan", soalan:[
+   { t:"Apakah matlamat Teras Strategik 6?",
+     o:["Membudayakan kemampanan dalam seluruh ekosistem pendidikan","Memperkasakan struktur persekolahan","Meningkatkan kecekapan tadbir urus","Mengoptimumkan potensi murid"], c:0,
+     e:"Matlamat Teras 6 ialah membudayakan kemampanan dalam seluruh ekosistem pendidikan." },
+   { t:"Dalam Teras Strategik 6, singkatan PPM bermaksud:",
+     o:["Pendidikan untuk Pembangunan Mampan","Pelan Pembangunan Murid","Pentaksiran Prestasi Murid","Program Pendidikan Moral"], c:0,
+     e:"PPM ialah Pendidikan untuk Pembangunan Mampan (Education for Sustainable Development)." },
+   { t:"Strategi 1 Teras 6 menekankan pemerkasaan PPM dalam kalangan:",
+     o:["Murid","Ibu bapa","Pegawai daerah","Pembekal"], c:0,
+     e:"Strategi 1 Teras 6 ialah Memperkasakan PPM dalam Kalangan Murid." },
+   { t:"Yang manakah strategi di bawah Teras Strategik 6?",
+     o:["Memperkukuh Pemantauan dan Penilaian Pelaksanaan PPM","Memperkasakan Pentaksiran dan Peperiksaan Kebangsaan","Meningkatkan Kemahiran Murid","Memperkukuh Dasar Kerjasama dengan Pihak Berkepentingan"], c:0,
+     e:"Strategi 4 Teras 6 ialah Memperkukuh Pemantauan dan Penilaian Pelaksanaan PPM di Institusi Pendidikan KPM." },
+   { t:"Berapakah bilangan strategi di bawah Teras Strategik 6?",
+     o:["Dua","Tiga","Empat","Lima"], c:2,
+     e:"Teras 6 mempunyai empat strategi berkaitan PPM." },
+ ]},
+ { id:7, nama:"Meningkatkan Kecekapan Tadbir Urus dan Sistem Penyampaian", soalan:[
+   { t:"Teras Strategik 7 bertujuan untuk:",
+     o:["Meningkatkan kecekapan tadbir urus dan sistem penyampaian","Memantapkan prasarana digital","Membentuk karakter murid","Membangunkan bakat murid"], c:0,
+     e:"Teras 7 menumpu peningkatan kecekapan tadbir urus dan sistem penyampaian." },
+   { t:"Strategi 2 Teras 7 melibatkan pemerkasaan fungsi dan struktur organisasi pada peringkat:",
+     o:["Bahagian, JPN, PPD dan institusi pendidikan","Sekolah swasta sahaja","Universiti awam","Agensi antarabangsa"], c:0,
+     e:"Strategi 2 memperkukuh fungsi dan struktur Bahagian, Jabatan Pendidikan Negeri (JPN), Pejabat Pendidikan Daerah (PPD) dan institusi pendidikan KPM." },
+   { t:"Konsep “Autonomi Terpimpin” dalam Teras 7 merujuk kepada pemberian autonomi kepada:",
+     o:["Institusi pendidikan KPM","Pembekal swasta","Ibu bapa","Media massa"], c:0,
+     e:"Strategi 3 Teras 7 ialah Meningkatkan Pemberian Autonomi Terpimpin kepada Institusi Pendidikan KPM." },
+   { t:"Strategi yang menangani “Pengurusan Perubahan dan Risiko” ialah:",
+     o:["Strategi 4 Teras 7","Strategi 1 Teras 6","Strategi 2 Teras 4","Strategi 3 Teras 5"], c:0,
+     e:"Strategi 4 Teras 7 ialah Memperkasakan Pengurusan Perubahan dan Risiko." },
+   { t:"Apakah slogan rasmi RPM 2026–2035?",
+     o:["Merapatkan Jurang, Meningkatkan Mutu, Meraih Kejayaan Bersama","Melonjak Transformasi Pendidikan Negara","Pendidikan Berkualiti untuk Semua","Membina Generasi Madani"], c:0,
+     e:"Slogan rasmi RPM ialah “Merapatkan Jurang, Meningkatkan Mutu, Meraih Kejayaan Bersama” (Closing the Gap, Raising the Bar, Together We Succeed)." },
+ ]},
+];
+
+/* ---- Bina senarai rata 35 soalan + label ---- */
+const QS=[];
+TERAS.forEach((t,ti)=>t.soalan.forEach((q,qi)=>{
+  QS.push({...q, terasId:t.id, terasNama:t.nama, terasIdx:ti, soalanKe:qi+1});
+}));
+const TOTAL=QS.length;
+
+/* ---- Keadaan ---- */
+let cur=0, locked=false;
+let answers=new Array(TOTAL).fill(null);          // indeks pilihan pengguna
+let user={nama:"",jawatan:"",institusi:""};
+const KEYS=["A","B","C","D"];
+
+/* ---- Elemen ---- */
+const $=id=>document.getElementById(id);
+const scStart=$("screen-start"), scQuiz=$("screen-quiz"), scRes=$("screen-result");
+
+/* ---- Pakai konfig ---- */
+$("title").innerHTML = CONFIG.TAJUK.replace("RPM ","RPM<br>").replace("Kuiz ","Kuiz ");
+$("eyebrow").textContent = "Rancangan Pendidikan Malaysia";
+$("subtitle").textContent = "Uji kefahaman anda terhadap 7 Teras Strategik.";
+$("f-org").textContent = CONFIG.PENGANJUR;
+
+/* =========================== MULA =========================== */
+$("btn-start").addEventListener("click", ()=>{
+  const nm=$("nm");
+  if(!nm.value.trim()){ nm.classList.add("err"); nm.focus(); nm.scrollIntoView({block:"center"}); return; }
+  nm.classList.remove("err");
+  user.nama=nm.value.trim();
+  user.jawatan=$("jw").value.trim();
+  user.institusi=$("in").value.trim();
+  scStart.hidden=true; scQuiz.hidden=false;
+  cur=0; render();
+  window.scrollTo({top:0,behavior:"smooth"});
+});
+$("nm").addEventListener("input",e=>e.target.classList.remove("err"));
+
+/* =========================== RENDER SOALAN =========================== */
+function render(){
+  locked = answers[cur]!==null;
+  const q=QS[cur];
+  $("q-teras").textContent = "Teras "+q.terasId;
+  $("q-num").textContent = cur+1;
+  $("q-tag").textContent = "Teras Strategik "+q.terasId;
+  $("q-text").textContent = q.t;
+  $("q-bar").style.width = ((cur)/TOTAL*100)+"%";
+
+  const wrap=$("q-opts"); wrap.innerHTML="";
+  q.o.forEach((opt,i)=>{
+    const b=document.createElement("button");
+    b.className="opt-btn"; b.type="button";
+    b.innerHTML=`<span class="key">${KEYS[i]}</span><span class="txt">${opt}</span><span class="mark"></span>`;
+    b.addEventListener("click",()=>choose(i));
+    wrap.appendChild(b);
+  });
+
+  const ex=$("q-explain"); ex.className="explain"; ex.innerHTML="";
+  const nx=$("btn-next");
+  nx.disabled=true; nx.textContent="Pilih satu jawapan";
+
+  if(locked) paint(answers[cur], true);  // sudah dijawab (mod semak / kembali)
+}
+
+function choose(i){
+  if(locked) return;
+  locked=true; answers[cur]=i;
+  paint(i,false);
+}
+
+function paint(pick, silent){
+  const q=QS[cur];
+  const btns=$("q-opts").querySelectorAll(".opt-btn");
+  btns.forEach((b,i)=>{
+    b.disabled=true;
+    const mark=b.querySelector(".mark");
+    if(i===q.c){ b.classList.add("correct"); mark.textContent="✓"; }
+    else if(i===pick){ b.classList.add("wrong"); mark.textContent="✕"; }
+    else b.classList.add("dim");
+  });
+  const ex=$("q-explain");
+  const betul = pick===q.c;
+  ex.innerHTML = `<b>${betul?"Betul.":"Kurang tepat."}</b> ${q.e}`;
+  ex.classList.add("show");
+  const nx=$("btn-next");
+  nx.disabled=false;
+  nx.textContent = cur===TOTAL-1 ? "Lihat keputusan →" : "Soalan seterusnya →";
+  if(!silent) $("q-bar").style.width = ((cur+1)/TOTAL*100)+"%";
+}
+
+$("btn-next").addEventListener("click",()=>{
+  if(answers[cur]===null) return;
+  if(cur<TOTAL-1){ cur++; render(); window.scrollTo({top:0,behavior:"smooth"}); }
+  else finish();
+});
+
+/* =========================== KEPUTUSAN =========================== */
+function tallies(){
+  const perTeras=new Array(7).fill(0);
+  let total=0;
+  QS.forEach((q,idx)=>{
+    if(answers[idx]===q.c){ perTeras[q.terasIdx]++; total++; }
+  });
+  return {perTeras,total};
+}
+
+function finish(){
+  scQuiz.hidden=true; scRes.hidden=false;
+  window.scrollTo({top:0,behavior:"smooth"});
+  const {perTeras,total}=tallies();
+  const pct=Math.round(total/TOTAL*100);
+
+  $("r-name").textContent=user.nama.split(" ")[0]||"peserta";
+  $("r-score").textContent=total;
+
+  // cincin skor
+  const ring=$("r-ring"), C=465;
+  setTimeout(()=>ring.style.strokeDashoffset = C*(1-total/TOTAL), 120);
+
+  // band
+  let label,col,msg;
+  if(pct>=85){label="Cemerlang";col="#2f7d5b";msg="Penguasaan yang sangat mantap terhadap 7 Teras Strategik RPM.";}
+  else if(pct>=70){label="Baik";col="#1b3262";msg="Kefahaman yang baik — sedikit ulang kaji untuk menjadi pakar.";}
+  else if(pct>=50){label="Sederhana";col="#b8901f";msg="Asas sudah ada. Semak semula teras yang skornya rendah.";}
+  else {label="Perlu Usaha";col="#c0392b";msg="Jom rujuk semula RPM Interaktif dan cuba lagi — anda boleh!";}
+  const pill=$("r-pill"); pill.textContent=label; pill.style.background=col+"22"; pill.style.color=col;
+  $("r-msg").textContent=msg;
+
+  // pecahan teras
+  const bars=$("r-bars"); bars.innerHTML="";
+  perTeras.forEach((s,i)=>{
+    const row=document.createElement("div"); row.className="brow";
+    row.innerHTML=`<div class="top"><span class="nm">Teras ${i+1}</span><span class="sc">${s}/5</span></div>
+                   <div class="bbar"><i style="width:0"></i></div>`;
+    bars.appendChild(row);
+    setTimeout(()=>row.querySelector("i").style.width=(s/5*100)+"%", 200+i*90);
+  });
+
+  saveToSheet(perTeras,total,pct);
+}
+
+/* =========================== SIMPAN KE GOOGLE SHEET =========================== */
+function saveToSheet(perTeras,total,pct){
+  const box=$("r-save"), txt=$("r-save-txt");
+  if(!CONFIG.GAS_URL){
+    box.className="save-state"; txt.textContent="Mod tanpa simpanan — URL Google Sheet belum ditetapkan.";
+    return;
+  }
+  box.className="save-state busy"; txt.textContent="Menyimpan keputusan…";
+
+  const detail = QS.map((q,idx)=>({
+    soalan_id: idx+1,
+    teras: q.terasId,
+    soalan: q.t,
+    jawapan_dipilih: answers[idx]===null ? "" : (KEYS[answers[idx]]+". "+q.o[answers[idx]]),
+    jawapan_betul: KEYS[q.c]+". "+q.o[q.c],
+    betul: answers[idx]===q.c
+  }));
+
+  const payload={
+    nama:user.nama, jawatan:user.jawatan, institusi:user.institusi,
+    teras_skor:perTeras, jumlah:total, peratus:pct,
+    jawapan:detail
+  };
+
+  fetch(CONFIG.GAS_URL,{
+    method:"POST",
+    headers:{"Content-Type":"text/plain;charset=utf-8"}, // elak preflight CORS
+    body:JSON.stringify(payload)
+  })
+  .then(r=>r.json())
+  .then(res=>{
+    if(res && res.ok){ box.className="save-state ok"; txt.textContent="Keputusan berjaya disimpan ke Google Sheet."; }
+    else throw new Error(res && res.error || "Gagal");
+  })
+  .catch(()=>{
+    box.className="save-state fail";
+    txt.textContent="Gagal menyimpan. Semak sambungan internet atau URL Web App.";
+  });
+}
+
+/* =========================== SEMAK / CUBA LAGI =========================== */
+$("btn-review").addEventListener("click",()=>{
+  scRes.hidden=true; scQuiz.hidden=false; cur=0; render(); window.scrollTo({top:0,behavior:"smooth"});
+});
+$("btn-retry").addEventListener("click",()=>{
+  answers=new Array(TOTAL).fill(null); cur=0;
+  scRes.hidden=true; scStart.hidden=false;
+  window.scrollTo({top:0,behavior:"smooth"});
+});
+</script>
+</body>
+</html>
