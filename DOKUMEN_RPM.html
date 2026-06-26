@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pembaca RPM 2026–2035 · TEKAD Interaktif</title>
+
+<!--
+  ============================================================================
+  PEMBACA DOKUMEN RPM 2026–2035  ·  TEKAD Interaktif
+  ----------------------------------------------------------------------------
+  Pembaca PDF dalam-pelayar dengan carian kata kunci seluruh dokumen.
+  - Paparan asal dokumen dikekalkan 100% (render visual setiap muka surat)
+  - Carian kata kunci: highlight, kira padanan, lompat Seterusnya/Sebelumnya
+  - Render "lazy" — hanya muka surat berdekatan diproses (sesuai untuk 375 m/s)
+  - Fail HTML tunggal. Letak bersama PDF dalam folder yang sama, deploy.
+
+  >>> TETAPAN: ubah nilai di bawah ikut keperluan anda <<<
+  ============================================================================
+-->
+<script>
+  const CONFIG = {
+    // Nama fail PDF (letak dalam folder yang sama dengan fail HTML ini)
+    pdfUrl:    'DOKUMEN_RPM_RESIZE.pdf',
+
+    // Tajuk yang dipaparkan di bar atas
+    title:     'Rancangan Pendidikan Malaysia',
+    subtitle:  '2026 – 2035',
+
+    // Pautan kembali ke sistem TEKAD Interaktif.
+    // Tukar kepada laluan sebenar, cth: '../index.html' atau URL penuh.
+    // Biar '#' jika tidak mahu papar butang kembali.
+    backLink:  '#',
+    backLabel: 'TEKAD Interaktif'
+  };
+</script>
+
+<!-- PDF.js (Mozilla) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --navy:        #0d2440;
+    --navy-2:      #13325c;
+    --navy-3:      #0a1c33;
+    --navy-line:   #1d3a63;
+    --brass:       #c69a4c;
+    --brass-2:     #dcb869;
+    --brass-soft:  rgba(198,154,76,.16);
+    --paper:       #e9ecf1;
+    --paper-2:     #dfe3ea;
+    --ink:         #16202c;
+    --muted:       #8190a1;
+    --muted-2:     #aeb9c6;
+    --hl:          #ffe24d;   /* padanan biasa  */
+    --hl-current:  #ff8a2a;   /* padanan semasa */
+    --shadow:      0 8px 30px rgba(8,18,33,.18);
+    --r:           10px;
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; height:100%; }
+  body{
+    font-family:'Plus Jakarta Sans', system-ui, sans-serif;
+    background:var(--paper);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+    overflow:hidden;
+  }
+
+  /* ---------------------------------------------------------------- TOPBAR */
+  .topbar{
+    position:fixed; inset:0 0 auto 0; z-index:40;
+    background:linear-gradient(180deg, var(--navy-2), var(--navy));
+    border-bottom:1px solid var(--navy-line);
+    color:#fff;
+    display:flex; align-items:center; gap:18px;
+    padding:0 16px; height:64px;
+  }
+  .brand{ display:flex; align-items:center; gap:12px; min-width:0; flex:0 0 auto; }
+  .brand .mark{
+    width:38px; height:38px; border-radius:9px; flex:0 0 auto;
+    background:radial-gradient(120% 120% at 30% 20%, var(--brass-2), var(--brass) 55%, #9a7331);
+    display:grid; place-items:center;
+    font-family:'Fraunces',serif; font-weight:700; color:var(--navy-3);
+    font-size:18px; box-shadow:inset 0 1px 0 rgba(255,255,255,.4);
+  }
+  .brand .txt{ display:flex; flex-direction:column; line-height:1.05; min-width:0; }
+  .brand .t1{ font-family:'Fraunces',serif; font-weight:600; font-size:15px; white-space:nowrap; }
+  .brand .t2{ font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--brass-2); }
+
+  /* search cluster */
+  .search{
+    flex:1 1 auto; display:flex; align-items:center; justify-content:center;
+    min-width:0;
+  }
+  .search-box{
+    display:flex; align-items:center; gap:8px;
+    background:var(--navy-3); border:1px solid var(--navy-line);
+    border-radius:999px; padding:7px 8px 7px 14px;
+    width:min(560px, 100%); transition:border-color .15s, box-shadow .15s;
+  }
+  .search-box:focus-within{ border-color:var(--brass); box-shadow:0 0 0 3px var(--brass-soft); }
+  .search-box svg{ flex:0 0 auto; color:var(--muted-2); }
+  #q{
+    flex:1 1 auto; min-width:0; background:transparent; border:0; outline:0;
+    color:#fff; font-size:14.5px; font-family:inherit;
+  }
+  #q::placeholder{ color:var(--muted); }
+  .count{
+    flex:0 0 auto; font-size:12.5px; color:var(--muted-2);
+    font-variant-numeric:tabular-nums; white-space:nowrap; padding:0 4px;
+    min-width:64px; text-align:center;
+  }
+  .count.has{ color:var(--brass-2); }
+  .icbtn{
+    flex:0 0 auto; width:30px; height:30px; border-radius:50%;
+    border:0; background:transparent; color:var(--muted-2);
+    display:grid; place-items:center; cursor:pointer; transition:.12s;
+  }
+  .icbtn:hover:not(:disabled){ background:var(--navy-2); color:#fff; }
+  .icbtn:disabled{ opacity:.32; cursor:default; }
+
+  /* right tools */
+  .tools{ flex:0 0 auto; display:flex; align-items:center; gap:6px; }
+  .pager{
+    display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted-2);
+    font-variant-numeric:tabular-nums;
+  }
+  #pageInput{
+    width:46px; text-align:center; background:var(--navy-3);
+    border:1px solid var(--navy-line); color:#fff; border-radius:7px;
+    padding:5px 4px; font-size:13px; font-family:inherit; outline:0;
+  }
+  #pageInput:focus{ border-color:var(--brass); }
+  .zoom{ display:flex; align-items:center; gap:2px; }
+  .zoom .lvl{ font-size:12.5px; color:var(--muted-2); width:42px; text-align:center; font-variant-numeric:tabular-nums; }
+  .sep{ width:1px; height:26px; background:var(--navy-line); margin:0 4px; }
+  .back{
+    display:inline-flex; align-items:center; gap:7px; text-decoration:none;
+    color:var(--navy-3); background:linear-gradient(180deg,var(--brass-2),var(--brass));
+    font-weight:600; font-size:13px; padding:8px 14px; border-radius:8px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.4); white-space:nowrap;
+  }
+  .back:hover{ filter:brightness(1.05); }
+
+  /* --------------------------------------------------------------- VIEWER */
+  #viewer{
+    position:absolute; inset:64px 0 0 0; overflow-y:auto; overflow-x:auto;
+    padding:26px 16px 60px; scroll-behavior:smooth;
+    background:
+      radial-gradient(1200px 400px at 50% -8%, rgba(19,50,92,.07), transparent 70%),
+      var(--paper);
+  }
+  .page-wrap{
+    position:relative; margin:0 auto 22px; background:#fff;
+    box-shadow:var(--shadow); border-radius:3px;
+  }
+  .page-wrap canvas{ display:block; border-radius:3px; }
+  .page-skeleton{
+    position:absolute; inset:0; display:grid; place-items:center;
+    color:var(--muted); font-size:13px; letter-spacing:.04em;
+    background:linear-gradient(110deg,#f3f5f8 30%,#eef1f5 50%,#f3f5f8 70%);
+    background-size:200% 100%; animation:sk 1.4s linear infinite; border-radius:3px;
+  }
+  @keyframes sk{ to{ background-position:-200% 0; } }
+  .page-num{
+    position:absolute; left:50%; bottom:-19px; transform:translateX(-50%);
+    font-size:11px; color:var(--muted); letter-spacing:.06em; font-variant-numeric:tabular-nums;
+  }
+
+  /* text layer (untuk pilih/salin teks) */
+  .textLayer{
+    position:absolute; inset:0; overflow:hidden; line-height:1;
+    opacity:1; mix-blend-mode:multiply;
+  }
+  .textLayer span{
+    position:absolute; white-space:pre; color:transparent;
+    transform-origin:0% 0%; cursor:text;
+  }
+  .textLayer ::selection{ background:rgba(198,154,76,.35); }
+
+  /* highlight layer (atas sekali) */
+  .hlLayer{ position:absolute; inset:0; pointer-events:none; }
+  .hl{
+    position:absolute; background:var(--hl); border-radius:2px;
+    mix-blend-mode:multiply; opacity:.55;
+  }
+  .hl.current{ background:var(--hl-current); opacity:.75; box-shadow:0 0 0 1.5px rgba(180,80,0,.5); }
+
+  /* --------------------------------------------------------------- STATES */
+  .overlay{
+    position:fixed; inset:0; z-index:60; display:grid; place-items:center;
+    background:linear-gradient(180deg,var(--navy),var(--navy-3)); color:#fff;
+    transition:opacity .4s; text-align:center; padding:24px;
+  }
+  .overlay.hide{ opacity:0; pointer-events:none; }
+  .loader{ display:flex; flex-direction:column; align-items:center; gap:18px; max-width:420px; }
+  .loader .mark{ width:64px; height:64px; border-radius:16px;
+    background:radial-gradient(120% 120% at 30% 20%, var(--brass-2), var(--brass) 55%, #9a7331);
+    display:grid; place-items:center; font-family:'Fraunces',serif; font-weight:700;
+    color:var(--navy-3); font-size:30px; box-shadow:inset 0 1px 0 rgba(255,255,255,.4); }
+  .loader h1{ font-family:'Fraunces',serif; font-weight:600; font-size:22px; margin:0; }
+  .loader p{ margin:0; color:var(--muted-2); font-size:14px; line-height:1.5; }
+  .bar{ width:240px; height:5px; background:var(--navy-2); border-radius:99px; overflow:hidden; }
+  .bar i{ display:block; height:100%; width:0; border-radius:99px;
+    background:linear-gradient(90deg,var(--brass),var(--brass-2)); transition:width .25s; }
+  .overlay.error .mark{ background:#b9453b; color:#fff; }
+  .overlay.error code{ background:rgba(0,0,0,.25); padding:2px 7px; border-radius:5px; color:var(--brass-2); }
+
+  /* index status pill */
+  .idx{
+    position:fixed; left:50%; bottom:18px; transform:translateX(-50%);
+    z-index:30; background:var(--navy); color:#fff; border:1px solid var(--navy-line);
+    border-radius:999px; padding:8px 16px; font-size:12.5px; display:flex; gap:10px; align-items:center;
+    box-shadow:var(--shadow); transition:opacity .4s, transform .4s;
+  }
+  .idx.hide{ opacity:0; transform:translateX(-50%) translateY(8px); pointer-events:none; }
+  .spin{ width:13px; height:13px; border:2px solid var(--navy-line); border-top-color:var(--brass-2);
+    border-radius:50%; animation:rot .7s linear infinite; }
+  @keyframes rot{ to{ transform:rotate(360deg); } }
+
+  .toast{
+    position:fixed; left:50%; bottom:18px; transform:translateX(-50%) translateY(8px);
+    z-index:31; background:var(--ink); color:#fff; padding:9px 16px; border-radius:8px;
+    font-size:13px; opacity:0; transition:.3s; pointer-events:none; box-shadow:var(--shadow);
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  /* -------------------------------------------------------------- MOBILE */
+  @media (max-width:880px){
+    .topbar{ flex-wrap:wrap; height:auto; padding:8px 12px; gap:8px; }
+    .brand{ order:1; }
+    .tools{ order:2; margin-left:auto; }
+    .search{ order:3; flex-basis:100%; }
+    .search-box{ width:100%; }
+    #viewer{ inset:118px 0 0 0; padding:18px 8px 60px; }
+    .pager .of{ display:none; }
+    .back{ padding:7px 11px; }
+    .brand .t1{ font-size:13px; }
+  }
+  @media (max-width:520px){
+    .zoom, .sep.s2{ display:none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="mark">R</div>
+    <div class="txt">
+      <span class="t1" id="brandTitle">Rancangan Pendidikan Malaysia</span>
+      <span class="t2" id="brandSub">2026 – 2035</span>
+    </div>
+  </div>
+
+  <div class="search">
+    <div class="search-box">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+      <input id="q" type="text" placeholder="Cari kata kunci dalam dokumen…" autocomplete="off" spellcheck="false" disabled>
+      <span class="count" id="count">—</span>
+      <button class="icbtn" id="prev" title="Padanan sebelumnya (Shift+Enter)" disabled>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+      </button>
+      <button class="icbtn" id="next" title="Padanan seterusnya (Enter)" disabled>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <button class="icbtn" id="clear" title="Kosongkan" style="display:none">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="tools">
+    <div class="pager">
+      <input id="pageInput" type="text" inputmode="numeric" value="1" title="Pergi ke muka surat">
+      <span class="of">/ <span id="pageTotal">—</span></span>
+    </div>
+    <span class="sep s2"></span>
+    <div class="zoom">
+      <button class="icbtn" id="zoomOut" title="Zum keluar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg>
+      </button>
+      <span class="lvl" id="zoomLvl">100%</span>
+      <button class="icbtn" id="zoomIn" title="Zum masuk">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+    </div>
+    <span class="sep"></span>
+    <a class="back" id="backBtn" href="#">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+      <span id="backLabel">TEKAD</span>
+    </a>
+  </div>
+</header>
+
+<main id="viewer"></main>
+
+<div class="idx hide" id="idx"><span class="spin"></span><span id="idxText">Mengindeks teks…</span></div>
+<div class="toast" id="toast"></div>
+
+<div class="overlay" id="overlay">
+  <div class="loader">
+    <div class="mark">R</div>
+    <h1>Memuatkan dokumen</h1>
+    <p id="loadMsg">Menyediakan pembaca…</p>
+    <div class="bar"><i id="loadBar"></i></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+(function(){
+  const pdfjsLib = window['pdfjsLib'];
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const CMAP_URL = 'https://unpkg.com/pdfjs-dist@3.11.174/cmaps/';
+
+  // ---- elemen
+  const $ = id => document.getElementById(id);
+  const viewer=$('viewer'), qEl=$('q'), countEl=$('count'),
+        prevBtn=$('prev'), nextBtn=$('next'), clearBtn=$('clear'),
+        pageInput=$('pageInput'), pageTotal=$('pageTotal'),
+        zoomLvlEl=$('zoomLvl'), zoomIn=$('zoomIn'), zoomOut=$('zoomOut'),
+        overlay=$('overlay'), loadMsg=$('loadMsg'), loadBar=$('loadBar'),
+        idxEl=$('idx'), idxText=$('idxText'), toastEl=$('toast');
+
+  // ---- tetapan tajuk/pautan
+  $('brandTitle').textContent = CONFIG.title;
+  $('brandSub').textContent   = CONFIG.subtitle;
+  document.querySelector('.loader h1').textContent = 'Memuatkan ' + CONFIG.subtitle;
+  if(CONFIG.backLink && CONFIG.backLink !== '#'){
+    $('backBtn').href = CONFIG.backLink;
+    $('backLabel').textContent = CONFIG.backLabel;
+  } else {
+    $('backBtn').style.display = 'none';
+  }
+
+  const DPR = Math.min(window.devicePixelRatio || 1, 2);
+  const RENDER_MARGIN = '1400px 0px';     // pra-render sebelum masuk skrin
+  const KEEP_RANGE = 5;                    // bil. m/s sekeliling yang dikekalkan
+
+  let pdf=null, numPages=0;
+  let pagePtW=0, pagePtH=0;                // saiz halaman (pts) — andai seragam
+  let baseFit=1, userZoom=1;               // skala
+  let scale=1;
+  const wraps=[];                          // div placeholder setiap m/s (1-indexed)
+  const rendered=new Map();                // page -> {canvas,textLayer,hlLayer,textContent,renderTask}
+  let io=null;
+
+  // ---- carian
+  let pageTextLower=[];                     // index ringan: teks lowercase /m.s
+  let indexReady=false;
+  let query='';
+  let matches=[];                          // {page,start,end}
+  let cur=-1;
+
+  /* ===================================================== MULA / MUAT PDF */
+  async function init(){
+    if(location.protocol === 'file:'){
+      showError('Fail ini perlu dihidangkan melalui pelayan web (cth. GitHub Pages), '
+        + 'bukan dibuka terus dari cakera. Buka melalui URL http(s).', '');
+      return;
+    }
+    try{
+      const task = pdfjsLib.getDocument({
+        url: CONFIG.pdfUrl, cMapUrl: CMAP_URL, cMapPacked:true,
+        disableAutoFetch:false, disableStream:false
+      });
+      task.onProgress = p => {
+        if(p.total){
+          const pct = Math.round(p.loaded/p.total*100);
+          loadBar.style.width = pct + '%';
+          loadMsg.textContent = 'Memuat turun dokumen… ' + pct + '%';
+        }
+      };
+      pdf = await task.promise;
+      numPages = pdf.numPages;
+      pageTotal.textContent = numPages;
+      pageTextLower = new Array(numPages+1).fill('');
+
+      const p1 = await pdf.getPage(1);
+      const vp = p1.getViewport({scale:1});
+      pagePtW = vp.width; pagePtH = vp.height;
+
+      computeScale();
+      buildPlaceholders();
+      setupObserver();
+      enableUI();
+      overlay.classList.add('hide');
+
+      buildIndex();           // latar belakang
+    }catch(err){
+      console.error(err);
+      showError('Gagal memuatkan dokumen. Pastikan fail <code>'+CONFIG.pdfUrl
+        +'</code> berada dalam folder yang sama dengan halaman ini.', String(err.message||err));
+    }
+  }
+
+  function showError(msgHtml, detail){
+    overlay.classList.add('error');
+    overlay.querySelector('.loader').innerHTML =
+      '<div class="mark">!</div><h1>Tidak dapat memaparkan</h1>'
+      + '<p>'+msgHtml+'</p>'
+      + (detail ? '<p style="font-size:12px;color:#7d8a99">'+detail+'</p>' : '');
+  }
+
+  /* ===================================================== SKALA & SUSUNAN */
+  function computeScale(){
+    const avail = Math.max(viewer.clientWidth - 32, 280);
+    const target = Math.min(avail, 1180);
+    baseFit = target / pagePtW;
+    scale = baseFit * userZoom;
+  }
+  function cssW(){ return Math.round(pagePtW*scale); }
+  function cssH(){ return Math.round(pagePtH*scale); }
+
+  function buildPlaceholders(){
+    viewer.innerHTML='';
+    wraps.length=0;
+    const w=cssW(), h=cssH();
+    for(let p=1;p<=numPages;p++){
+      const wrap=document.createElement('div');
+      wrap.className='page-wrap';
+      wrap.style.width=w+'px';
+      wrap.style.height=h+'px';
+      wrap.dataset.page=p;
+      wrap.innerHTML='<div class="page-skeleton">Muka surat '+p+'</div>'
+                    +'<div class="page-num">'+p+'</div>';
+      viewer.appendChild(wrap);
+      wraps[p]=wrap;
+    }
+  }
+
+  function setupObserver(){
+    if(io) io.disconnect();
+    io = new IntersectionObserver(entries=>{
+      for(const e of entries){
+        const p=+e.target.dataset.page;
+        if(e.isIntersecting) renderPage(p);
+      }
+      pruneFar();
+    }, {root:viewer, rootMargin:RENDER_MARGIN, threshold:0});
+    for(let p=1;p<=numPages;p++) io.observe(wraps[p]);
+  }
+
+  /* ===================================================== RENDER MUKA SURAT */
+  async function renderPage(p){
+    if(rendered.has(p)) return;
+    const wrap=wraps[p];
+    const entry={canvas:null,textLayer:null,hlLayer:null,textContent:null,renderTask:null,scale:scale};
+    rendered.set(p, entry);
+
+    let page;
+    try{ page = await pdf.getPage(p); }
+    catch(e){ rendered.delete(p); return; }
+    if(!rendered.has(p)) return; // dibuang semasa menunggu
+
+    const vp = page.getViewport({scale:scale});
+    entry.viewportTransform = vp.transform;
+    const canvas=document.createElement('canvas');
+    canvas.width = Math.floor(vp.width*DPR);
+    canvas.height= Math.floor(vp.height*DPR);
+    canvas.style.width = Math.floor(vp.width)+'px';
+    canvas.style.height= Math.floor(vp.height)+'px';
+    const ctx=canvas.getContext('2d', {alpha:false});
+    ctx.scale(DPR,DPR);
+
+    entry.canvas=canvas;
+    entry.renderTask = page.render({canvasContext:ctx, viewport:vp});
+    try{ await entry.renderTask.promise; }
+    catch(e){ return; } // dibatalkan
+    if(!rendered.has(p)) return;
+
+    // letak canvas + skeleton keluar
+    const sk = wrap.querySelector('.page-skeleton'); if(sk) sk.remove();
+    wrap.insertBefore(canvas, wrap.firstChild);
+
+    // lapisan teks (pilih/salin) + lapisan highlight
+    const tlDiv=document.createElement('div'); tlDiv.className='textLayer';
+    tlDiv.style.width=canvas.style.width; tlDiv.style.height=canvas.style.height;
+    const hlDiv=document.createElement('div'); hlDiv.className='hlLayer';
+    wrap.appendChild(tlDiv); wrap.appendChild(hlDiv);
+    entry.textLayer=tlDiv; entry.hlLayer=hlDiv;
+
+    try{
+      const tc = await page.getTextContent();
+      if(!rendered.has(p)) return;
+      entry.textContent = tc;
+      pdfjsLib.renderTextLayer({ textContent:tc, container:tlDiv, viewport:vp, textDivs:[] });
+      if(!pageTextLower[p]) pageTextLower[p]=tc.items.map(i=>i.str).join('').toLowerCase();
+    }catch(e){ /* abaikan */ }
+
+    if(query) highlightPage(p);
+  }
+
+  function unrenderPage(p){
+    const e=rendered.get(p); if(!e) return;
+    if(e.renderTask){ try{ e.renderTask.cancel(); }catch(_){}} 
+    rendered.delete(p);
+    const wrap=wraps[p];
+    wrap.innerHTML='<div class="page-skeleton">Muka surat '+p+'</div>'
+                  +'<div class="page-num">'+p+'</div>';
+  }
+
+  function pruneFar(){
+    if(rendered.size<=KEEP_RANGE*2+3) return;
+    const c=currentPage();
+    for(const p of rendered.keys()){
+      if(Math.abs(p-c)>KEEP_RANGE+2) unrenderPage(p);
+    }
+  }
+
+  function currentPage(){
+    const mid = viewer.scrollTop + viewer.clientHeight/2;
+    let acc=0;
+    for(let p=1;p<=numPages;p++){
+      const h=wraps[p].offsetHeight + 22;
+      if(mid < acc+h) return p;
+      acc+=h;
+    }
+    return numPages;
+  }
+
+  /* ===================================================== INDEKS CARIAN */
+  async function buildIndex(){
+    idxEl.classList.remove('hide');
+    const BATCH=6;
+    let done=0;
+    for(let s=1;s<=numPages;s+=BATCH){
+      const jobs=[];
+      for(let p=s; p<Math.min(s+BATCH,numPages+1); p++){
+        if(pageTextLower[p]){ done++; continue; }
+        jobs.push(
+          pdf.getPage(p).then(pg=>pg.getTextContent()).then(tc=>{
+            pageTextLower[p]=tc.items.map(i=>i.str).join('').toLowerCase();
+          }).catch(()=>{ pageTextLower[p]=''; }).then(()=>{ done++; })
+        );
+      }
+      await Promise.all(jobs);
+      idxText.textContent='Mengindeks teks… '+Math.round(done/numPages*100)+'%';
+      await new Promise(r=>setTimeout(r,0)); // beri nafas pada UI
+    }
+    indexReady=true;
+    idxEl.classList.add('hide');
+    if(query) runSearch(query, true); // ulang carian kini index lengkap
+  }
+
+  /* ===================================================== CARIAN */
+  function enableUI(){
+    qEl.disabled=false; countEl.textContent='';
+    qEl.focus();
+  }
+
+  let debounce=null;
+  qEl.addEventListener('input', ()=>{
+    clearBtn.style.display = qEl.value ? 'grid' : 'none';
+    clearTimeout(debounce);
+    debounce=setTimeout(()=>runSearch(qEl.value), 220);
+  });
+  qEl.addEventListener('keydown', e=>{
+    if(e.key==='Enter'){ e.preventDefault(); e.shiftKey?gotoMatch(cur-1):gotoMatch(cur+1); }
+    if(e.key==='Escape'){ clearSearch(); }
+  });
+  prevBtn.onclick=()=>gotoMatch(cur-1);
+  nextBtn.onclick=()=>gotoMatch(cur+1);
+  clearBtn.onclick=clearSearch;
+
+  function clearSearch(){
+    qEl.value=''; clearBtn.style.display='none'; runSearch('');
+    qEl.focus();
+  }
+
+  function runSearch(raw, silent){
+    query=(raw||'').toLowerCase().trim();
+    matches=[]; cur=-1;
+    if(!query){
+      countEl.textContent=''; countEl.classList.remove('has');
+      prevBtn.disabled=nextBtn.disabled=true;
+      for(const p of rendered.keys()) clearHL(p);
+      return;
+    }
+    if(query.length<2){
+      countEl.textContent='≥2 aksara'; countEl.classList.remove('has');
+      prevBtn.disabled=nextBtn.disabled=true;
+      for(const p of rendered.keys()) clearHL(p);
+      return;
+    }
+    for(let p=1;p<=numPages;p++){
+      const t=pageTextLower[p]; if(!t) continue;
+      let i=t.indexOf(query);
+      while(i!==-1){
+        matches.push({page:p, start:i, end:i+query.length});
+        i=t.indexOf(query, i+query.length);
+      }
+    }
+    updateCount();
+    // lukis semula highlight pd halaman yg sedang dirender
+    for(const p of rendered.keys()) highlightPage(p);
+    if(matches.length){ prevBtn.disabled=nextBtn.disabled=false; if(!silent) gotoMatch(0); }
+    else { prevBtn.disabled=nextBtn.disabled=true; }
+  }
+
+  function updateCount(){
+    if(!matches.length){
+      countEl.textContent = indexReady ? 'Tiada' : '…';
+      countEl.classList.remove('has');
+    }else{
+      countEl.textContent = (cur+1>0?cur+1:1)+' / '+matches.length;
+      countEl.classList.add('has');
+    }
+  }
+
+  async function gotoMatch(i){
+    if(!matches.length) return;
+    cur=((i%matches.length)+matches.length)%matches.length;
+    updateCount();
+    const m=matches[cur];
+    scrollToPage(m.page, true);
+    await renderPage(m.page);
+    // tunggu seketika supaya textContent sedia
+    let tries=0;
+    while((!rendered.get(m.page)||!rendered.get(m.page).textContent) && tries<60){
+      await new Promise(r=>setTimeout(r,30)); tries++;
+    }
+    highlightPage(m.page);
+    const curEl = rendered.get(m.page) && rendered.get(m.page).hlLayer
+                  ? rendered.get(m.page).hlLayer.querySelector('.hl.current') : null;
+    if(curEl){
+      const wrap=wraps[m.page];
+      const top = wrap.offsetTop + curEl.offsetTop - viewer.clientHeight*0.4;
+      viewer.scrollTo({top, behavior:'smooth'});
+    }
+  }
+
+  function scrollToPage(p, smooth){
+    const wrap=wraps[p];
+    viewer.scrollTo({top:wrap.offsetTop-26, behavior:smooth?'smooth':'auto'});
+  }
+
+  /* ---- melukis highlight ikut geometri item teks ---- */
+  function clearHL(p){
+    const e=rendered.get(p); if(e&&e.hlLayer) e.hlLayer.innerHTML='';
+  }
+
+  function highlightPage(p){
+    const e=rendered.get(p);
+    if(!e||!e.hlLayer) return;
+    e.hlLayer.innerHTML='';
+    if(!query || !e.textContent) return;
+    const t=pageTextLower[p]; if(!t) return;
+
+    // jadual offset item
+    const items=e.textContent.items;
+    const offs=new Array(items.length);
+    let acc=0;
+    for(let k=0;k<items.length;k++){ offs[k]=acc; acc+=items[k].str.length; }
+
+    const vp = (e.scale||scale);
+    const viewport = { scale:vp, transform: e.viewportTransform || [vp,0,0,-vp,0,pagePtH*vp] };
+
+    // cari padanan pada halaman
+    let i=t.indexOf(query);
+    while(i!==-1){
+      const s=i, en=i+query.length;
+      const isCur = matches[cur] && matches[cur].page===p && matches[cur].start===s;
+      paintRange(e, items, offs, s, en, isCur, viewport);
+      i=t.indexOf(query, en);
+    }
+  }
+
+  function paintRange(e, items, offs, s, en, isCur, viewport){
+    for(let k=0;k<items.length;k++){
+      const it=items[k];
+      const iS=offs[k], iE=offs[k]+it.str.length;
+      if(iE<=s || iS>=en) continue;            // tiada pertindihan
+      const len=it.str.length||1;
+      const localS=Math.max(0, s-iS);
+      const localE=Math.min(len, en-iS);
+      const tx=pdfjsLib.Util.transform(viewport.transform, it.transform);
+      const fontH=Math.hypot(tx[2],tx[3]);
+      const totalW=(it.width||0)*viewport.scale;
+      const x=tx[4] + (localS/len)*totalW;
+      const w=Math.max(2, ((localE-localS)/len)*totalW);
+      const top=tx[5]-fontH;
+      const div=document.createElement('div');
+      div.className='hl'+(isCur?' current':'');
+      div.style.left=x+'px';
+      div.style.top=top+'px';
+      div.style.width=w+'px';
+      div.style.height=(fontH*1.12)+'px';
+      e.hlLayer.appendChild(div);
+    }
+  }
+
+  /* ===================================================== PAGER & SCROLL */
+  let scrollTimer=null;
+  viewer.addEventListener('scroll', ()=>{
+    clearTimeout(scrollTimer);
+    scrollTimer=setTimeout(()=>{
+      const c=currentPage();
+      if(document.activeElement!==pageInput) pageInput.value=c;
+    }, 80);
+  });
+  pageInput.addEventListener('keydown', e=>{
+    if(e.key==='Enter'){
+      let n=parseInt(pageInput.value,10);
+      if(!isNaN(n)){ n=Math.max(1,Math.min(numPages,n)); pageInput.value=n; scrollToPage(n,true); pageInput.blur(); }
+    }
+  });
+
+  /* ===================================================== ZOOM */
+  zoomIn.onclick =()=>setZoom(userZoom+0.2);
+  zoomOut.onclick=()=>setZoom(userZoom-0.2);
+  function setZoom(z){
+    z=Math.max(0.4, Math.min(3, Math.round(z*10)/10));
+    if(z===userZoom) return;
+    const anchor=currentPage();
+    userZoom=z; zoomLvlEl.textContent=Math.round(userZoom*100)+'%';
+    rerenderAll(anchor);
+  }
+  function rerenderAll(anchor){
+    computeScale();
+    for(const p of Array.from(rendered.keys())) unrenderPage(p);
+    const w=cssW(), h=cssH();
+    for(let p=1;p<=numPages;p++){ wraps[p].style.width=w+'px'; wraps[p].style.height=h+'px'; }
+    scrollToPage(anchor,false);
+    // observer akan render semula yg kelihatan
+    for(let p=Math.max(1,anchor-2); p<=Math.min(numPages,anchor+2); p++) renderPage(p);
+  }
+
+  // keyboard global: Ctrl/Cmd+F fokus carian
+  window.addEventListener('keydown', e=>{
+    if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='f'){
+      e.preventDefault(); qEl.focus(); qEl.select();
+    }
+  });
+
+  // resize → kira semula lebar (debounce)
+  let rzTimer=null;
+  window.addEventListener('resize', ()=>{
+    clearTimeout(rzTimer);
+    rzTimer=setTimeout(()=>{ if(pdf) rerenderAll(currentPage()); }, 200);
+  });
+
+  function toast(msg){
+    toastEl.textContent=msg; toastEl.classList.add('show');
+    setTimeout(()=>toastEl.classList.remove('show'),2200);
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
